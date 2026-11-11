@@ -63,6 +63,20 @@ async function resolveModel() {
   return activeModel || GROQ_MODEL;
 }
 
+class BusyError extends Error {}
+const sleep = ms => new Promise(res => setTimeout(res, ms));
+
+// Groq sends retry-after (seconds) or x-ratelimit-reset-tokens like "7.66s" / "1m2s" / "577ms"
+function retryAfterSeconds(headers) {
+  const ra = Number(headers.get('retry-after'));
+  if (Number.isFinite(ra) && ra > 0) return ra;
+  const t = headers.get('x-ratelimit-reset-tokens') || '';
+  const m = t.match(/(?:(\d+)m(?!s))?(?:([\d.]+)s)?(?:([\d.]+)ms)?/);
+  if (!m) return 60;
+  const secs = (Number(m[1]) || 0) * 60 + (Number(m[2]) || 0) + (Number(m[3]) || 0) / 1000;
+  return secs > 0 ? Math.ceil(secs) : 60;
+}
+
 async function askJSON(system, user, maxTokens = 1200) {
   for (let attempt = 0; attempt < 2; attempt++) {
     const model = await resolveModel();
@@ -83,6 +97,12 @@ async function askJSON(system, user, maxTokens = 1200) {
     if (!r.ok) {
       const body = (await r.text()).slice(0, 300);
       if (r.status === 404 && body.includes('model')) { activeModel = null; MODEL_PREFERENCES.splice(MODEL_PREFERENCES.indexOf(model), 1); if (attempt === 0) continue; }
+      if (r.status === 429) {
+        // per-minute token limit: wait once if Groq says it frees up soon
+        const wait = retryAfterSeconds(r.headers);
+        if (attempt === 0 && wait <= 12) { await sleep(wait * 1000 + 250); continue; }
+        throw new BusyError(`LLM rate limit (retry after ${wait}s)`);
+      }
       if (attempt === 0 && r.status >= 500) continue;
       throw new Error(`LLM error ${r.status}: ${body}`);
     }
@@ -253,6 +273,7 @@ async function orsLeg(a, b, profile, mode) {
     headers: { 'Content-Type': 'application/json', Authorization: process.env.ORS_API_KEY },
     body: JSON.stringify(body)
   });
+  if (r.status === 429) throw new BusyError('Route rate limit');
   if (!r.ok) throw new Error(`Route error ${r.status}: ${(await r.text()).slice(0, 200)}`);
   const j = await r.json();
   return j.features[0].geometry.coordinates; // [lon, lat, ele]
@@ -262,6 +283,7 @@ async function routeLeg(a, b, profile) {
   try {
     return { coords: await orsLeg(a, b, profile, 'wheelchair'), mode: 'wheelchair' };
   } catch (e) {
+    if (e instanceof BusyError) throw e;
     console.warn('wheelchair leg failed, retrying on foot:', e.message);
     return { coords: await orsLeg(a, b, profile, 'foot'), mode: 'foot' };
   }
@@ -359,7 +381,42 @@ async function writeStories(stops, profile, lang) {
 // ---------- API ----------
 
 const app = express();
+app.set('trust proxy', 'loopback'); // Apache forwards the visitor's IP in X-Forwarded-For
 app.use(express.json({ limit: '20kb' }));
+
+// Short cache: the same request within 30 minutes is answered without new API calls
+const CACHE_TTL_MS = 30 * 60 * 1000, CACHE_MAX = 200;
+const cache = new Map();
+function cacheKey(o) {
+  return JSON.stringify([o.who.toLowerCase().replace(/\s+/g, ' '), [...o.interests].sort(), o.durationMin,
+    o.start.lat.toFixed(3), o.start.lon.toFixed(3), o.lang]);
+}
+function cacheGet(key) {
+  const hit = cache.get(key);
+  if (!hit) return null;
+  if (Date.now() - hit.at > CACHE_TTL_MS) { cache.delete(key); return null; }
+  return hit.data;
+}
+function cacheSet(key, data) {
+  if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value);
+  cache.set(key, { at: Date.now(), data });
+}
+
+// Per-visitor limit on NEW plans (cached answers don't count)
+const LIMIT_PLANS = Number(process.env.LIMIT_PLANS) || 5, LIMIT_WINDOW_MS = 10 * 60 * 1000;
+const visits = new Map();
+function overLimit(ip) {
+  const now = Date.now();
+  const list = (visits.get(ip) || []).filter(t => now - t < LIMIT_WINDOW_MS);
+  visits.set(ip, list);
+  if (list.length >= LIMIT_PLANS) return Math.ceil((LIMIT_WINDOW_MS - (now - list[0])) / 60000);
+  list.push(now);
+  return 0;
+}
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, list] of visits) if (!list.some(t => now - t < LIMIT_WINDOW_MS)) visits.delete(ip);
+}, 5 * 60 * 1000).unref();
 app.use(express.static(new URL('./public', import.meta.url).pathname));
 
 app.get('/api/health', (req, res) => res.json({ ok: true, model: activeModel || 'not chosen yet' }));
@@ -377,6 +434,15 @@ app.post('/api/plan', async (req, res) => {
       ? { lat: s.lat, lon: s.lon, label: String(s.label || 'your location').slice(0, 60) }
       : STARTS[0];
     if (!who) return res.status(400).json({ error: 'Tell us who is walking today.' });
+
+    const key = cacheKey({ who, interests, durationMin, start, lang });
+    const cached = cacheGet(key);
+    if (cached) return res.json({ ...cached, cached: true, ms: Date.now() - t0 });
+
+    const waitMin = overLimit(req.ip);
+    if (waitMin) {
+      return res.status(429).json({ error: `You've planned several walks in a short time. Please try again in about ${waitMin} minute${waitMin > 1 ? 's' : ''}.` });
+    }
 
     const [profile, weather] = await Promise.all([
       buildProfile(who),
@@ -402,16 +468,21 @@ app.post('/api/plan', async (req, res) => {
     }
     if (route.used_fallback) warnings.push('Part of the route uses walking paths without full wheelchair data. Check the red sections.');
 
-    res.json({
+    const result = {
       profile, weather, start,
       stops: sel.stops.map(s => {
         const st = stories.find(x => x.id === s.id) || {};
         return { id: s.id, name: s.name, lat: s.lat, lon: s.lon, why: s.why, indoor: s.indoor, story: st.story, tip: st.tip };
       }),
-      route, warnings,
-      ms: Date.now() - t0
-    });
+      route, warnings
+    };
+    if (stories.some(s => s.story)) cacheSet(key, result); // don't cache a plan whose stories failed
+    res.json({ ...result, ms: Date.now() - t0 });
   } catch (e) {
+    if (e instanceof BusyError) {
+      console.warn('plan busy:', e.message);
+      return res.status(503).json({ error: 'Many people are planning walks right now. Please try again in a minute.' });
+    }
     console.error('plan failed:', e);
     res.status(502).json({ error: 'We could not plan the walk right now. Please try again in a minute.' });
   }
