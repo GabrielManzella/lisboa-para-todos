@@ -1,0 +1,62 @@
+[
+  {
+    "id": "rossio", "name": "Rossio Square", "lat": 38.7139, "lon": -9.1394, "area": "Baixa",
+    "themes": ["history", "architecture"], "step_free": "yes", "accessible_toilet": "unknown",
+    "indoor": false, "exposed": false, "visit_minutes": 10,
+    "note": "Flat square with wavy stone paving: smooth but slippery when wet.", "verify": true, "source": ""
+  },
+  {
+    "id": "confeitaria-nacional", "name": "Confeitaria Nacional", "lat": 38.7131, "lon": -9.1380, "area": "Baixa",
+    "themes": ["food", "pastries", "history"], "step_free": "partial", "accessible_toilet": "unknown",
+    "indoor": true, "exposed": false, "visit_minutes": 20,
+    "note": "Historic pastry shop on Praça da Figueira. Check the entrance step on arrival.", "verify": true, "source": ""
+  },
+  {
+    "id": "rua-augusta-arch", "name": "Rua Augusta Arch", "lat": 38.7087, "lon": -9.1367, "area": "Baixa",
+    "themes": ["history", "architecture", "viewpoints"], "step_free": "yes", "accessible_toilet": "unknown",
+    "indoor": false, "exposed": false, "visit_minutes": 10,
+    "note": "Seen from the flat street; the rooftop viewpoint is reached by lift and stairs.", "verify": true, "source": ""
+  },
+  {
+    "id": "praca-do-comercio", "name": "Praça do Comércio", "lat": 38.7077, "lon": -9.1366, "area": "Baixa",
+    "themes": ["history", "river", "architecture"], "step_free": "yes", "accessible_toilet": "unknown",
+    "indoor": false, "exposed": true, "visit_minutes": 15,
+    "note": "Large flat square on the river: very exposed in strong wind.", "verify": true, "source": ""
+  },
+  {
+    "id": "se-cathedral", "name": "Lisbon Cathedral (Sé)", "lat": 38.7098, "lon": -9.1335, "area": "Alfama",
+    "themes": ["history", "churches", "architecture"], "step_free": "partial", "accessible_toilet": "unknown",
+    "indoor": true, "exposed": false, "visit_minutes": 20,
+    "note": "Steps at the main door: check for a side or ramped entrance.", "verify": true, "source": ""
+  },
+  {
+    "id": "santo-antonio-church", "name": "Church of Santo António", "lat": 38.7103, "lon": -9.1340, "area": "Alfama",
+    "themes": ["history", "churches"], "step_free": "partial", "accessible_toilet": "unknown",
+    "indoor": true, "exposed": false, "visit_minutes": 15,
+    "note": "Next to the cathedral. Check the entrance steps on arrival.", "verify": true, "source": ""
+  },
+  {
+    "id": "costa-do-castelo", "name": "Costa do Castelo", "lat": 38.7140, "lon": -9.1350, "area": "Castelo",
+    "themes": ["viewpoints", "history"], "step_free": "yes", "accessible_toilet": "unknown",
+    "indoor": false, "exposed": false, "visit_minutes": 10,
+    "note": "Reached by the free lift from Chão do Loureiro.", "verify": true, "source": ""
+  },
+  {
+    "id": "castelo-sao-jorge", "name": "São Jorge Castle (entrance)", "lat": 38.7126, "lon": -9.1330, "area": "Castelo",
+    "themes": ["history", "viewpoints"], "step_free": "partial", "accessible_toilet": "unknown",
+    "indoor": false, "exposed": true, "visit_minutes": 45,
+    "note": "Cobbled and uneven inside the walls. Paid entry.", "verify": true, "source": ""
+  },
+  {
+    "id": "miradouro-santa-luzia", "name": "Miradouro de Santa Luzia", "lat": 38.7118, "lon": -9.1301, "area": "Alfama",
+    "themes": ["viewpoints", "art"], "step_free": "partial", "accessible_toilet": "unknown",
+    "indoor": false, "exposed": true, "visit_minutes": 15,
+    "note": "Viewpoint with tiled panels; exposed in strong wind.", "verify": true, "source": ""
+  },
+  {
+    "id": "elevador-santa-justa", "name": "Santa Justa Lift (outside view)", "lat": 38.7121, "lon": -9.1394, "area": "Baixa",
+    "themes": ["history", "architecture"], "step_free": "yes", "accessible_toilet": "unknown",
+    "indoor": false, "exposed": false, "visit_minutes": 10,
+    "note": "Seen from the flat street below. The ride itself is paid and has queues.", "verify": true, "source": ""
+  }
+]

@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lisboa Para Todos — an accessible walk that fits you</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="hero">
+  <div class="wrap">
+    <p class="kicker">Lisboa Para Todos</p>
+    <h1>A Lisbon walk that fits you</h1>
+    <p>Four quick questions. We plan gentle slopes, free lifts, today's weather and a spoken guide.</p>
+  </div>
+</header>
+
+<main class="wrap">
+  <form id="form" class="card stack" novalidate>
+    <div class="field">
+      <label for="who">1. Who is walking today?</label>
+      <textarea id="who" rows="3" required placeholder="e.g. Me and my mother. She uses a walker and gets tired after 20 minutes."></textarea>
+    </div>
+
+    <fieldset class="field">
+      <legend>2. What would you love to see?</legend>
+      <div class="chips">
+        <label class="chip"><input type="checkbox" name="interest" value="history" checked><span>History</span></label>
+        <label class="chip"><input type="checkbox" name="interest" value="pastries"><span>Pastries</span></label>
+        <label class="chip"><input type="checkbox" name="interest" value="viewpoints"><span>Viewpoints</span></label>
+        <label class="chip"><input type="checkbox" name="interest" value="churches"><span>Churches</span></label>
+        <label class="chip"><input type="checkbox" name="interest" value="architecture"><span>Architecture</span></label>
+        <label class="chip"><input type="checkbox" name="interest" value="river"><span>River</span></label>
+      </div>
+    </fieldset>
+
+    <fieldset class="field">
+      <legend>3. How much time do you have?</legend>
+      <div class="segmented">
+        <label><input type="radio" name="duration" value="60"><span>1 hour</span></label>
+        <label><input type="radio" name="duration" value="120" checked><span>2 hours</span></label>
+        <label><input type="radio" name="duration" value="240"><span>Half day</span></label>
+      </div>
+    </fieldset>
+
+    <div class="field">
+      <label for="start">4. Where do you start?</label>
+      <div class="row">
+        <select id="start"></select>
+        <button type="button" id="locate" class="btn-outline" aria-label="Use my location">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3"></path></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="lang">Guide language</label>
+      <select id="lang">
+        <option value="en">English</option>
+        <option value="pt">Português</option>
+        <option value="it">Italiano</option>
+        <option value="es">Español</option>
+      </select>
+    </div>
+
+    <button type="submit" class="btn-primary" id="go">Plan my walk</button>
+    <p id="status" class="status" role="status" aria-live="polite"></p>
+  </form>
+
+  <section id="result" hidden>
+    <div class="card profile">
+      <div>
+        <p class="label">Your walk</p>
+        <p id="profileSummary" class="big"></p>
+        <p id="profileLimits" class="muted"></p>
+      </div>
+      <button type="button" class="btn-link" id="edit">Edit</button>
+    </div>
+    <div id="weather" class="banner"></div>
+    <div class="stats">
+      <div><strong id="statDist"></strong><span>distance</span></div>
+      <div><strong id="statTime"></strong><span>walking</span></div>
+      <div><strong id="statSlope"></strong><span>steepest</span></div>
+      <div><strong id="statLifts"></strong><span>free lifts</span></div>
+    </div>
+    <ul id="warnings" class="warnings"></ul>
+    <div id="map" class="map" role="region" aria-label="Map of your route"></div>
+    <div class="legend" aria-hidden="true">
+      <span><i class="sw green"></i>Gentle, under 5%</span>
+      <span><i class="sw amber"></i>Moderate</span>
+      <span><i class="sw red"></i>Steep for you</span>
+      <span><i class="sw lift"></i>Free lift</span>
+    </div>
+    <h2>Your stops</h2>
+    <ol id="stops" class="stops"></ol>
+  </section>
+</main>
+
+<footer class="wrap muted small">
+  Routes: openrouteservice © HeiGIT, map data © OpenStreetMap contributors · Weather: Open-Meteo · Always check conditions on site.
+</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

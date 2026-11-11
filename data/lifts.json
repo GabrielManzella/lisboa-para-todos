@@ -1,0 +1,12 @@
+[
+  {
+    "id": "lift-fanqueiros", "name": "Free lift, Rua dos Fanqueiros 170–178",
+    "bottom_lat": 38.7117, "bottom_lon": -9.1366, "top_lat": 38.7120, "top_lon": -9.1357,
+    "free": true, "hours": "check", "links_to": "lift-chao-loureiro", "verify": true, "source": "https://audiala.com/en/portugal/lisbon/elevador-do-castelo"
+  },
+  {
+    "id": "lift-chao-loureiro", "name": "Free lift, Chão do Loureiro market to Costa do Castelo",
+    "bottom_lat": 38.7128, "bottom_lon": -9.1355, "top_lat": 38.7138, "top_lon": -9.1352,
+    "free": true, "hours": "check", "links_to": "", "verify": true, "source": "https://audiala.com/en/portugal/lisbon/elevador-do-castelo"
+  }
+]
