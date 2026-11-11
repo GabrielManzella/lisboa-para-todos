@@ -26,7 +26,7 @@ npm start              # http://127.0.0.1:3000
 GROQ_API_KEY=...
 ORS_API_KEY=...
 # optional
-GROQ_MODEL=llama-3.3-70b-versatile
+# GROQ_MODEL=  (optional: the server picks an available model automatically)
 PORT=3000
 ```
 

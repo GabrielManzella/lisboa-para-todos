@@ -35,21 +35,54 @@ function haversine(a, b) {
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
+// Pick a chat model this Groq key can actually use (model names change over time).
+const MODEL_PREFERENCES = [
+  process.env.GROQ_MODEL,
+  'openai/gpt-oss-120b',
+  'llama-3.3-70b-versatile',
+  'meta-llama/llama-4-maverick-17b-128e-instruct',
+  'openai/gpt-oss-20b',
+  'meta-llama/llama-4-scout-17b-16e-instruct'
+].filter(Boolean);
+let activeModel = null;
+
+async function resolveModel() {
+  if (activeModel) return activeModel;
+  try {
+    const r = await fetch('https://api.groq.com/openai/v1/models', {
+      headers: { Authorization: `Bearer ${process.env.GROQ_API_KEY}` }
+    });
+    if (!r.ok) throw new Error(`models list ${r.status}`);
+    const ids = (await r.json()).data.map(m => m.id);
+    activeModel = MODEL_PREFERENCES.find(p => ids.includes(p)) ||
+      ids.find(id => !/whisper|guard|tts|orpheus|playai|compound|prompt/i.test(id)) || null;
+    console.log(`Using Groq model: ${activeModel} (available: ${ids.length})`);
+  } catch (e) {
+    console.warn('Could not list Groq models:', e.message);
+  }
+  return activeModel || GROQ_MODEL;
+}
+
 async function askJSON(system, user, maxTokens = 1200) {
   for (let attempt = 0; attempt < 2; attempt++) {
+    const model = await resolveModel();
+    const payload = {
+      model,
+      temperature: 0.3,
+      max_tokens: maxTokens,
+      response_format: { type: 'json_object' },
+      messages: [{ role: 'system', content: system }, { role: 'user', content: user }]
+    };
+    // reasoning models spend tokens thinking; keep that short so the JSON fits
+    if (model.includes('gpt-oss')) payload.reasoning_effort = 'low';
     const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.GROQ_API_KEY}` },
-      body: JSON.stringify({
-        model: GROQ_MODEL,
-        temperature: 0.3,
-        max_tokens: maxTokens,
-        response_format: { type: 'json_object' },
-        messages: [{ role: 'system', content: system }, { role: 'user', content: user }]
-      })
+      body: JSON.stringify(payload)
     });
     if (!r.ok) {
       const body = (await r.text()).slice(0, 300);
+      if (r.status === 404 && body.includes('model')) { activeModel = null; MODEL_PREFERENCES.splice(MODEL_PREFERENCES.indexOf(model), 1); if (attempt === 0) continue; }
       if (attempt === 0 && r.status >= 500) continue;
       throw new Error(`LLM error ${r.status}: ${body}`);
     }
@@ -73,7 +106,7 @@ If the description is unclear, choose the safer (more limited) archetype and say
 Return only JSON: {"archetypes": ["..."], "narration_style": "short phrase", "summary": "one plain sentence starting with 'Planning for'"}`;
 
 async function buildProfile(who) {
-  const ai = await askJSON(PROFILE_PROMPT, `Travellers: ${who}`, 300);
+  const ai = await askJSON(PROFILE_PROMPT, `Travellers: ${who}`, 1000);
   let types = (ai.archetypes || []).filter(t => ARCHETYPES[t]);
   if (!types.length) types = ['older_visitor'];
   const limited = types.filter(t => t !== 'none');
@@ -159,7 +192,7 @@ async function selectStops(profile, weather, interests, durationMin, start) {
     start: start.label, candidate_stops: list, lifts
   });
 
-  const ai = await askJSON(STOPS_PROMPT, user, 600);
+  const ai = await askJSON(STOPS_PROMPT, user, 1500);
   const byId = Object.fromEntries(candidates.map(s => [s.id, s]));
   let chosen = (ai.stops || []).filter(s => byId[s.id]).slice(0, 5)
     .map(s => ({ ...byId[s.id], why: s.why || '' }));
@@ -314,7 +347,7 @@ async function writeStories(stops, profile, lang) {
     stops: stops.map(s => ({ id: s.id, name: s.name, themes: s.themes, note: s.note || '' }))
   });
   try {
-    const ai = await askJSON(STORY_PROMPT, user, 2500);
+    const ai = await askJSON(STORY_PROMPT, user, 4000);
     const byId = Object.fromEntries((ai.stories || []).map(s => [s.id, s]));
     return stops.map(s => ({ id: s.id, story: byId[s.id]?.story || '', tip: byId[s.id]?.tip || s.note || '' }));
   } catch (e) {
@@ -329,7 +362,7 @@ const app = express();
 app.use(express.json({ limit: '20kb' }));
 app.use(express.static(new URL('./public', import.meta.url).pathname));
 
-app.get('/api/health', (req, res) => res.json({ ok: true, model: GROQ_MODEL }));
+app.get('/api/health', (req, res) => res.json({ ok: true, model: activeModel || 'not chosen yet' }));
 app.get('/api/starts', (req, res) => res.json(STARTS));
 
 app.post('/api/plan', async (req, res) => {
